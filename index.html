@@ -33,7 +33,7 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    overflow: hidden;
+    overflow-x: hidden;
     position: relative;
   }
 
@@ -557,6 +557,123 @@
     color: var(--glow-cyan);
     text-shadow: 0 0 8px var(--glow-cyan);
   }
+
+  /* ── MOBILE RESPONSIVE ── */
+  @media (max-width: 600px) {
+    :root {
+      --tile-size: 58px;
+      --gap: 5px;
+    }
+
+    body { overflow-y: auto; justify-content: flex-start; }
+
+    .wrapper { gap: 12px; padding: 12px 10px 20px; width: 100%; }
+
+    .logo { font-size: 1.8rem; letter-spacing: 0.2em; }
+    .tagline { font-size: 0.55rem; letter-spacing: 0.2em; }
+
+    .stats { gap: 10px; flex-wrap: wrap; justify-content: center; }
+    .stat-box { padding: 7px 12px; }
+    .stat-value { font-size: 1.1rem; }
+    .stat-label { font-size: 0.48rem; }
+    .timer-container { width: 50px; height: 50px; }
+    .timer-text { font-size: 0.75rem; }
+
+    /* Stack board + panel vertically */
+    .game-container {
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      gap: 12px;
+    }
+
+    /* Side panel becomes a horizontal row of sections */
+    .side-panel {
+      width: 100%;
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .panel-section {
+      flex: 1 1 calc(50% - 4px);
+      min-width: 120px;
+      padding: 10px;
+    }
+
+    /* Difficulty buttons go inline */
+    .diff-btn {
+      display: inline-block;
+      width: auto;
+      padding: 6px 10px;
+      font-size: 0.6rem;
+      margin-bottom: 0;
+      margin-right: 4px;
+    }
+
+    .panel-section:first-child {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .panel-section:first-child .panel-title { margin-bottom: 6px; }
+    .panel-section:first-child .diff-btns-row {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+
+    .new-game-btn {
+      flex: 1 1 100%;
+      padding: 12px;
+      font-size: 0.7rem;
+    }
+
+    /* Scale tile icons down */
+    .tile-icon { font-size: 1.5rem; }
+    .tile-label { font-size: 0.42rem; }
+
+    /* Overlay */
+    .overlay-box {
+      padding: 28px 20px;
+      margin: 16px;
+      width: calc(100% - 32px);
+    }
+    .overlay-title { font-size: 1.5rem; }
+    .overlay-sub { font-size: 0.6rem; letter-spacing: 0.1em; }
+    .result-item .value { font-size: 1.1rem; }
+
+    /* Combo badge smaller on mobile */
+    .combo-badge { font-size: 1.4rem; }
+  }
+
+  @media (max-width: 400px) {
+    :root {
+      --tile-size: 50px;
+      --gap: 4px;
+    }
+    .logo { font-size: 1.5rem; }
+    .tile-icon { font-size: 1.3rem; }
+    .tile-label { display: none; }
+  }
+
+  /* Touch: remove hover effects on mobile to prevent stuck states */
+  @media (hover: none) {
+    .tile:not(.revealed):not(.matched):hover {
+      transform: none;
+      border-color: var(--border);
+      box-shadow: none;
+    }
+    .tile.selected {
+      transform: scale(1.05);
+    }
+    .new-game-btn:hover {
+      transform: none;
+      background: transparent;
+      box-shadow: none;
+    }
+  }
 </style>
 </head>
 <body>
@@ -597,9 +714,11 @@
     <div class="side-panel">
       <div class="panel-section">
         <div class="panel-title">DIFFICULTY</div>
-        <button class="diff-btn active" data-diff="easy" onclick="setDifficulty('easy', this)">EASY 4×4</button>
-        <button class="diff-btn" data-diff="medium" onclick="setDifficulty('medium', this)">MED 6×4</button>
-        <button class="diff-btn" data-diff="hard" onclick="setDifficulty('hard', this)">HARD 6×6</button>
+        <div class="diff-btns-row">
+          <button class="diff-btn active" data-diff="easy" onclick="setDifficulty('easy', this)">EASY 4×4</button>
+          <button class="diff-btn" data-diff="medium" onclick="setDifficulty('medium', this)">MED 6×4</button>
+          <button class="diff-btn" data-diff="hard" onclick="setDifficulty('hard', this)">HARD 6×6</button>
+        </div>
       </div>
 
       <div class="panel-section">
@@ -623,7 +742,6 @@
   </div>
 </div>
 
-<!-- Combo badge -->
 <div class="combo-badge" id="comboBadge"></div>
 
 <!-- Win overlay -->
@@ -978,8 +1096,7 @@ function updateBestScore() {
 
 function showOverlay() { document.getElementById('overlay').classList.add('show'); }
 function hideOverlay() { document.getElementById('overlay').classList.remove('show'); }
-
-// Init
+  
 newGame();
 </script>
 </body>
