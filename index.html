@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VOIDFLIP</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0810;
+    --panel: #110d1a;
+    --border: #2a1a40;
+    --glow-cyan: #cc44ff;
+    --glow-pink: #aa00ff;
+    --glow-yellow: #ffe600;
+    --glow-green: #ffcc00;
+    --glow-purple: #9900ee;
+    --glow-orange: #ffaa00;
+    --text: #f0e0ff;
+    --dim: #5a3a7a;
+    --tile-size: 72px;
+    --gap: 6px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    font-family: 'Space Mono', monospace;
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Scanline overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.08) 2px,
+      rgba(0,0,0,0.08) 4px
+    );
+    pointer-events: none;
+    z-index: 100;
+  }
+
+  /* Background grid */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(180,0,255,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(180,0,255,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrapper {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    padding: 20px;
+  }
+
+  /* HEADER */
+  header {
+    text-align: center;
+  }
+
+  .logo {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 2.8rem;
+    font-weight: 900;
+    letter-spacing: 0.3em;
+    color: var(--glow-cyan);
+    text-shadow:
+      0 0 10px var(--glow-cyan),
+      0 0 30px var(--glow-cyan),
+      0 0 60px rgba(0,245,255,0.3);
+    animation: flicker 4s infinite;
+  }
+
+  .logo span {
+    color: var(--glow-pink);
+    text-shadow:
+      0 0 10px var(--glow-pink),
+      0 0 30px var(--glow-pink),
+      0 0 60px rgba(255,0,110,0.3);
+  }
+
+  .tagline {
+    font-size: 0.65rem;
+    letter-spacing: 0.4em;
+    color: var(--dim);
+    margin-top: 4px;
+  }
+
+  @keyframes flicker {
+    0%, 95%, 100% { opacity: 1; }
+    96% { opacity: 0.7; }
+    97% { opacity: 1; }
+    98% { opacity: 0.5; }
+    99% { opacity: 1; }
+  }
+
+  /* STATS BAR */
+  .stats {
+    display: flex;
+    gap: 24px;
+    align-items: center;
+  }
+
+  .stat-box {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 10px 18px;
+    text-align: center;
+    position: relative;
+    clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+  }
+
+  .stat-box::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--glow-cyan), transparent);
+  }
+
+  .stat-label {
+    font-size: 0.55rem;
+    letter-spacing: 0.3em;
+    color: var(--dim);
+    text-transform: uppercase;
+  }
+
+  .stat-value {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--glow-cyan);
+    text-shadow: 0 0 10px var(--glow-cyan);
+    transition: all 0.2s;
+  }
+
+  .stat-value.bump {
+    transform: scale(1.3);
+    color: var(--glow-yellow);
+    text-shadow: 0 0 20px var(--glow-yellow);
+  }
+
+  /* GAME AREA */
+  .game-container {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+  }
+
+  .board-wrap {
+    position: relative;
+  }
+
+  .board {
+    display: grid;
+    gap: var(--gap);
+    padding: 14px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    position: relative;
+  }
+
+  .board::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    background: linear-gradient(135deg, rgba(180,0,255,0.08), transparent 40%, rgba(255,230,0,0.08));
+    pointer-events: none;
+  }
+
+  /* TILES */
+  .tile {
+    width: var(--tile-size);
+    height: var(--tile-size);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+    transition: transform 0.1s, border-color 0.2s;
+    user-select: none;
+    overflow: hidden;
+    clip-path: polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%);
+  }
+
+  .tile::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  .tile:not(.revealed):not(.matched):hover {
+    transform: scale(1.06);
+    border-color: rgba(0,245,255,0.5);
+    box-shadow: 0 0 12px rgba(0,245,255,0.2);
+    z-index: 2;
+  }
+
+  .tile.face-down {
+    background: linear-gradient(135deg, #0d1117, #1a1a2e);
+    cursor: pointer;
+  }
+
+  .tile.face-down .tile-inner {
+    opacity: 0;
+    transform: rotateY(90deg);
+  }
+
+  .tile-inner {
+    transition: opacity 0.15s, transform 0.15s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+  }
+
+  .tile-icon { font-size: 1.9rem; line-height: 1; }
+  .tile-label {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.5rem;
+    letter-spacing: 0.1em;
+    opacity: 0.7;
+  }
+
+  /* face-down pattern */
+  .tile.face-down::after {
+    content: '◆';
+    position: absolute;
+    font-size: 1.5rem;
+    color: rgba(180,0,255,0.2);
+    text-shadow: 0 0 8px rgba(180,0,255,0.15);
+  }
+
+  /* selected */
+  .tile.selected {
+    border-color: var(--glow-yellow) !important;
+    box-shadow:
+      0 0 12px var(--glow-yellow),
+      inset 0 0 20px rgba(255,230,0,0.05);
+    transform: scale(1.08);
+    z-index: 3;
+  }
+
+  /* matched */
+  .tile.matched {
+    cursor: default;
+    animation: matchPop 0.5s ease forwards;
+  }
+
+  @keyframes matchPop {
+    0% { transform: scale(1.1); }
+    30% { transform: scale(1.2); }
+    60% { transform: scale(0.95); }
+    100% { transform: scale(1); }
+  }
+
+  .tile.matched::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(0,255,136,0.1), rgba(0,255,136,0.05));
+  }
+
+  /* wrong flash */
+  .tile.wrong {
+    animation: wrongFlash 0.4s ease;
+  }
+
+  @keyframes wrongFlash {
+    0%, 100% { border-color: var(--border); }
+    25%, 75% { border-color: var(--glow-pink); box-shadow: 0 0 16px var(--glow-pink); }
+  }
+
+  /* SIDE PANEL */
+  .side-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 160px;
+  }
+
+  .panel-section {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 14px;
+    position: relative;
+  }
+
+  .panel-section::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--glow-yellow), var(--glow-purple));
+  }
+
+  .panel-title {
+    font-size: 0.55rem;
+    letter-spacing: 0.35em;
+    color: var(--dim);
+    margin-bottom: 10px;
+    text-transform: uppercase;
+  }
+
+  /* Difficulty */
+  .diff-btn {
+    display: block;
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--dim);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    padding: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 4px;
+    letter-spacing: 0.1em;
+    text-align: left;
+  }
+
+  .diff-btn:hover, .diff-btn.active {
+    border-color: var(--glow-cyan);
+    color: var(--glow-cyan);
+    background: rgba(0,245,255,0.04);
+    text-shadow: 0 0 8px var(--glow-cyan);
+  }
+
+  .diff-btn.active::before { content: '▶ '; }
+
+  /* New game btn */
+  .new-game-btn {
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--glow-cyan);
+    color: var(--glow-cyan);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    padding: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%);
+    text-shadow: 0 0 8px var(--glow-cyan);
+  }
+
+  .new-game-btn:hover {
+    background: rgba(0,245,255,0.1);
+    box-shadow: 0 0 20px rgba(0,245,255,0.2);
+    transform: translateY(-1px);
+  }
+
+  /* Progress bar */
+  .progress-wrap {
+    background: var(--border);
+    height: 4px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--glow-purple), var(--glow-yellow));
+    transition: width 0.5s ease;
+    box-shadow: 0 0 8px var(--glow-cyan);
+  }
+
+  .progress-label {
+    font-size: 0.6rem;
+    color: var(--dim);
+    margin-top: 6px;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  /* Best time */
+  .best-time {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1rem;
+    color: var(--glow-yellow);
+    text-shadow: 0 0 8px var(--glow-yellow);
+  }
+
+  /* OVERLAY */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10,10,15,0.92);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    backdrop-filter: blur(4px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s;
+  }
+
+  .overlay.show {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  .overlay-box {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 40px 50px;
+    text-align: center;
+    position: relative;
+    max-width: 400px;
+    transform: translateY(20px);
+    transition: transform 0.4s;
+  }
+
+  .overlay.show .overlay-box { transform: translateY(0); }
+
+  .overlay-box::before, .overlay-box::after {
+    content: '';
+    position: absolute;
+    left: 0; right: 0;
+    height: 2px;
+  }
+  .overlay-box::before { top: 0; background: linear-gradient(90deg, transparent, var(--glow-cyan), transparent); }
+  .overlay-box::after { bottom: 0; background: linear-gradient(90deg, transparent, var(--glow-yellow), transparent); }
+
+  .overlay-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 2rem;
+    font-weight: 900;
+    color: var(--glow-cyan);
+    text-shadow: 0 0 20px var(--glow-cyan);
+    margin-bottom: 8px;
+    letter-spacing: 0.2em;
+  }
+
+  .overlay-sub {
+    font-size: 0.75rem;
+    color: var(--dim);
+    letter-spacing: 0.2em;
+    margin-bottom: 24px;
+  }
+
+  .result-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+
+  .result-item {
+    background: rgba(0,245,255,0.03);
+    border: 1px solid var(--border);
+    padding: 12px;
+  }
+
+  .result-item .label { font-size: 0.55rem; letter-spacing: 0.3em; color: var(--dim); }
+  .result-item .value {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.3rem;
+    color: var(--glow-yellow);
+    text-shadow: 0 0 10px var(--glow-yellow);
+    margin-top: 4px;
+  }
+
+  .overlay .new-game-btn {
+    font-size: 0.8rem;
+    padding: 14px 28px;
+    width: auto;
+  }
+
+  /* Combo badge */
+  .combo-badge {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 2rem;
+    font-weight: 900;
+    color: var(--glow-yellow);
+    text-shadow: 0 0 30px var(--glow-yellow);
+    pointer-events: none;
+    z-index: 150;
+    white-space: nowrap;
+    opacity: 0;
+  }
+
+  .combo-badge.show {
+    animation: comboPop 1s ease forwards;
+  }
+
+  @keyframes comboPop {
+    0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+    30% { transform: translate(-50%, -60%) scale(1.2); opacity: 1; }
+    70% { transform: translate(-50%, -70%) scale(1); opacity: 1; }
+    100% { transform: translate(-50%, -80%) scale(0.8); opacity: 0; }
+  }
+
+  /* Timer ring */
+  .timer-svg { transform: rotate(-90deg); }
+  .timer-track { fill: none; stroke: var(--border); stroke-width: 3; }
+  .timer-fill {
+    fill: none;
+    stroke: var(--glow-cyan);
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-dasharray: 157;
+    stroke-dashoffset: 0;
+    transition: stroke-dashoffset 1s linear, stroke 0.5s;
+    filter: drop-shadow(0 0 4px var(--glow-cyan));
+  }
+
+  .timer-container {
+    position: relative;
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .timer-text {
+    position: absolute;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--glow-cyan);
+    text-shadow: 0 0 8px var(--glow-cyan);
+  }
+</style>
+</head>
+<body>
+
+<div class="wrapper">
+  <header>
+    <div class="logo">VOID<span>FLIP</span></div>
+    <div class="tagline">// NEURAL MATCH PROTOCOL v2.0 //</div>
+  </header>
+
+  <div class="stats">
+    <div class="stat-box">
+      <div class="stat-label">SCORE</div>
+      <div class="stat-value" id="scoreVal">0</div>
+    </div>
+    <div class="timer-container">
+      <svg class="timer-svg" width="60" height="60" viewBox="0 0 60 60">
+        <circle class="timer-track" cx="30" cy="30" r="25"/>
+        <circle class="timer-fill" id="timerRing" cx="30" cy="30" r="25"/>
+      </svg>
+      <div class="timer-text" id="timerText">--</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">MOVES</div>
+      <div class="stat-value" id="movesVal">0</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">COMBO</div>
+      <div class="stat-value" id="comboVal">x1</div>
+    </div>
+  </div>
+
+  <div class="game-container">
+    <div class="board-wrap">
+      <div class="board" id="board"></div>
+    </div>
+
+    <div class="side-panel">
+      <div class="panel-section">
+        <div class="panel-title">DIFFICULTY</div>
+        <button class="diff-btn active" data-diff="easy" onclick="setDifficulty('easy', this)">EASY 4×4</button>
+        <button class="diff-btn" data-diff="medium" onclick="setDifficulty('medium', this)">MED 6×4</button>
+        <button class="diff-btn" data-diff="hard" onclick="setDifficulty('hard', this)">HARD 6×6</button>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-title">PROGRESS</div>
+        <div class="progress-wrap">
+          <div class="progress-fill" id="progressFill" style="width:0%"></div>
+        </div>
+        <div class="progress-label">
+          <span id="matchedCount">0</span>
+          <span id="totalPairs">0</span>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-title">BEST SCORE</div>
+        <div class="best-time" id="bestScore">---</div>
+      </div>
+
+      <button class="new-game-btn" onclick="newGame()">NEW GAME</button>
+    </div>
+  </div>
+</div>
+
+<!-- Combo badge -->
+<div class="combo-badge" id="comboBadge"></div>
+
+<!-- Win overlay -->
+<div class="overlay" id="overlay">
+  <div class="overlay-box">
+    <div class="overlay-title" id="overlayTitle">COMPLETE</div>
+    <div class="overlay-sub" id="overlaySub">MEMORY PROTOCOL CLEARED</div>
+    <div class="result-grid">
+      <div class="result-item">
+        <div class="label">SCORE</div>
+        <div class="value" id="finalScore">0</div>
+      </div>
+      <div class="result-item">
+        <div class="label">TIME</div>
+        <div class="value" id="finalTime">0s</div>
+      </div>
+      <div class="result-item">
+        <div class="label">MOVES</div>
+        <div class="value" id="finalMoves">0</div>
+      </div>
+      <div class="result-item">
+        <div class="label">ACCURACY</div>
+        <div class="value" id="finalAcc">0%</div>
+      </div>
+    </div>
+    <button class="new-game-btn" onclick="newGame()">PLAY AGAIN</button>
+  </div>
+</div>
+
+<script>
+const TILES_DATA = [
+  { icon: '⚡', label: 'VOLT',  color: '#ffe600' },
+  { icon: '🔥', label: 'BLAZE', color: '#ff6b00' },
+  { icon: '❄️', label: 'CRYO',  color: '#00f5ff' },
+  { icon: '🌊', label: 'WAVE',  color: '#0088ff' },
+  { icon: '💎', label: 'GEM',   color: '#bf00ff' },
+  { icon: '🌿', label: 'LEAF',  color: '#00ff88' },
+  { icon: '☀️', label: 'SOLAR', color: '#ffcc00' },
+  { icon: '🌙', label: 'LUNAR', color: '#aaaaff' },
+  { icon: '🎯', label: 'AIM',   color: '#ff006e' },
+  { icon: '🔮', label: 'ORBL',  color: '#cc44ff' },
+  { icon: '⚙️', label: 'GEAR',  color: '#888888' },
+  { icon: '💥', label: 'BOOM',  color: '#ff4400' },
+  { icon: '🌟', label: 'STAR',  color: '#ffee44' },
+  { icon: '🎲', label: 'DICE',  color: '#44ffcc' },
+  { icon: '🚀', label: 'SHIP',  color: '#00ddff' },
+  { icon: '🏆', label: 'WIN',   color: '#ffcc00' },
+  { icon: '🎮', label: 'CTRL',  color: '#aa66ff' },
+  { icon: '💡', label: 'IDEA',  color: '#ffffaa' },
+];
+
+const DIFFICULTIES = {
+  easy:   { cols: 4, rows: 4, time: 60 },
+  medium: { cols: 6, rows: 4, time: 90 },
+  hard:   { cols: 6, rows: 6, time: 120 },
+};
+
+let state = {
+  difficulty: 'easy',
+  cards: [],
+  flipped: [],
+  matched: new Set(),
+  score: 0,
+  moves: 0,
+  combo: 0,
+  locked: false,
+  timer: null,
+  timeLeft: 60,
+  timeMax: 60,
+  gameActive: false,
+  bestScores: { easy: null, medium: null, hard: null },
+};
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function setDifficulty(diff, btn) {
+  state.difficulty = diff;
+  document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  newGame();
+}
+
+function newGame() {
+  clearInterval(state.timer);
+  const cfg = DIFFICULTIES[state.difficulty];
+  const needed = (cfg.cols * cfg.rows) / 2;
+  const chosen = shuffle([...TILES_DATA]).slice(0, needed);
+  state.cards = shuffle([...chosen, ...chosen].map((t, i) => ({ ...t, id: i })));
+  state.flipped = [];
+  state.matched = new Set();
+  state.score = 0;
+  state.moves = 0;
+  state.combo = 0;
+  state.locked = false;
+  state.timeLeft = cfg.time;
+  state.timeMax = cfg.time;
+  state.gameActive = false;
+
+  hideOverlay();
+  renderBoard();
+  updateStats();
+  updateProgress();
+  updateTimer();
+  updateBestScore();
+}
+
+function renderBoard() {
+  const board = document.getElementById('board');
+  const cfg = DIFFICULTIES[state.difficulty];
+  board.style.gridTemplateColumns = `repeat(${cfg.cols}, var(--tile-size))`;
+  board.innerHTML = '';
+
+  state.cards.forEach((card, idx) => {
+    const tile = document.createElement('div');
+    tile.className = 'tile face-down';
+    tile.dataset.idx = idx;
+    tile.innerHTML = `
+      <div class="tile-inner">
+        <div class="tile-icon">${card.icon}</div>
+        <div class="tile-label" style="color:${card.color}">${card.label}</div>
+      </div>`;
+    tile.style.setProperty('--tile-color', card.color);
+    tile.addEventListener('click', () => handleFlip(idx));
+    board.appendChild(tile);
+  });
+}
+
+function handleFlip(idx) {
+  if (!state.gameActive) {
+    state.gameActive = true;
+    startTimer();
+  }
+
+  if (state.locked) return;
+  if (state.flipped.includes(idx)) return;
+  if (state.matched.has(idx)) return;
+
+  const tile = getTileEl(idx);
+  state.flipped.push(idx);
+  revealTile(tile, state.cards[idx]);
+
+  if (state.flipped.length === 2) {
+    state.moves++;
+    state.locked = true;
+    checkMatch();
+  }
+
+  updateStats();
+}
+
+function revealTile(el, card) {
+  el.classList.remove('face-down');
+  el.classList.add('revealed');
+  el.style.borderColor = card.color;
+  el.style.boxShadow = `0 0 12px ${card.color}44, inset 0 0 20px ${card.color}11`;
+  el.querySelector('.tile-inner').style.opacity = '1';
+  el.querySelector('.tile-inner').style.transform = 'rotateY(0)';
+}
+
+function hideTile(idx) {
+  const el = getTileEl(idx);
+  const card = state.cards[idx];
+  el.classList.add('face-down');
+  el.classList.remove('revealed', 'selected', 'wrong');
+  el.style.borderColor = '';
+  el.style.boxShadow = '';
+  el.querySelector('.tile-inner').style.opacity = '0';
+  el.querySelector('.tile-inner').style.transform = 'rotateY(90deg)';
+}
+
+function checkMatch() {
+  const [a, b] = state.flipped;
+  const ca = state.cards[a], cb = state.cards[b];
+
+  if (ca.icon === cb.icon) {
+    // Match!
+    state.combo++;
+    const pts = 100 * state.combo;
+    state.score += pts;
+
+    setTimeout(() => {
+      [a, b].forEach(idx => {
+        const el = getTileEl(idx);
+        el.classList.add('matched');
+        el.style.borderColor = ca.color;
+        el.style.boxShadow = `0 0 16px ${ca.color}88`;
+      });
+      state.matched.add(a);
+      state.matched.add(b);
+      state.flipped = [];
+      state.locked = false;
+
+      if (state.combo >= 2) showCombo(state.combo, pts);
+
+      updateStats();
+      updateProgress();
+
+      if (state.matched.size === state.cards.length) {
+        setTimeout(showWin, 500);
+      }
+    }, 300);
+  } else {
+    // No match
+    state.combo = 0;
+    [a, b].forEach(idx => {
+      const el = getTileEl(idx);
+      el.classList.add('wrong', 'selected');
+    });
+
+    setTimeout(() => {
+      [a, b].forEach(idx => hideTile(idx));
+      state.flipped = [];
+      state.locked = false;
+      updateStats();
+    }, 900);
+  }
+}
+
+function getTileEl(idx) {
+  return document.querySelector(`[data-idx="${idx}"]`);
+}
+
+function updateStats() {
+  const sv = document.getElementById('scoreVal');
+  const mv = document.getElementById('movesVal');
+  const cv = document.getElementById('comboVal');
+
+  sv.textContent = state.score;
+  mv.textContent = state.moves;
+  cv.textContent = `x${state.combo || 1}`;
+
+  // Bump animation
+  [sv, mv, cv].forEach(el => {
+    el.classList.remove('bump');
+    void el.offsetWidth;
+    el.classList.add('bump');
+    setTimeout(() => el.classList.remove('bump'), 200);
+  });
+}
+
+function updateProgress() {
+  const total = state.cards.length / 2;
+  const done = state.matched.size / 2;
+  const pct = (done / total) * 100;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('matchedCount').textContent = done;
+  document.getElementById('totalPairs').textContent = total;
+}
+
+function startTimer() {
+  clearInterval(state.timer);
+  state.timer = setInterval(() => {
+    state.timeLeft--;
+    updateTimer();
+    if (state.timeLeft <= 0) {
+      clearInterval(state.timer);
+      showGameOver();
+    }
+  }, 1000);
+}
+
+function updateTimer() {
+  const t = state.timeLeft;
+  const max = state.timeMax;
+  const ring = document.getElementById('timerRing');
+  const text = document.getElementById('timerText');
+  const circumference = 157;
+  const offset = circumference - (t / max) * circumference;
+  ring.style.strokeDashoffset = offset;
+
+  // Color transition
+  const pct = t / max;
+  if (pct > 0.5) {
+    ring.style.stroke = 'var(--glow-cyan)';
+    ring.style.filter = 'drop-shadow(0 0 4px var(--glow-cyan))';
+    text.style.color = 'var(--glow-cyan)';
+  } else if (pct > 0.25) {
+    ring.style.stroke = 'var(--glow-yellow)';
+    ring.style.filter = 'drop-shadow(0 0 4px var(--glow-yellow))';
+    text.style.color = 'var(--glow-yellow)';
+  } else {
+    ring.style.stroke = 'var(--glow-pink)';
+    ring.style.filter = 'drop-shadow(0 0 8px var(--glow-pink))';
+    text.style.color = 'var(--glow-pink)';
+  }
+
+  text.textContent = t > 0 ? t : '0';
+}
+
+function showCombo(combo, pts) {
+  const badge = document.getElementById('comboBadge');
+  badge.textContent = combo >= 5 ? `🔥 ULTRA x${combo} (+${pts})` :
+                      combo >= 3 ? `⚡ COMBO x${combo} (+${pts})` :
+                      `✨ x${combo} (+${pts})`;
+  badge.classList.remove('show');
+  void badge.offsetWidth;
+  badge.classList.add('show');
+}
+
+function showWin() {
+  clearInterval(state.timer);
+  const timeUsed = state.timeMax - state.timeLeft;
+  const accuracy = state.moves > 0
+    ? Math.round((state.matched.size / 2 / state.moves) * 100)
+    : 100;
+
+  // Bonus for remaining time
+  const timeBonus = state.timeLeft * 10;
+  state.score += timeBonus;
+
+  // Save best
+  const diff = state.difficulty;
+  if (!state.bestScores[diff] || state.score > state.bestScores[diff]) {
+    state.bestScores[diff] = state.score;
+  }
+
+  document.getElementById('overlayTitle').textContent = 'COMPLETE';
+  document.getElementById('overlaySub').textContent = 'NEURAL MATCH PROTOCOL CLEARED';
+  document.getElementById('finalScore').textContent = state.score;
+  document.getElementById('finalTime').textContent = timeUsed + 's';
+  document.getElementById('finalMoves').textContent = state.moves;
+  document.getElementById('finalAcc').textContent = accuracy + '%';
+
+  updateBestScore();
+  showOverlay();
+}
+
+function showGameOver() {
+  clearInterval(state.timer);
+  document.getElementById('overlayTitle').textContent = 'TIMEOUT';
+  document.getElementById('overlaySub').textContent = 'NEURAL MATCH PROTOCOL FAILED';
+  const accuracy = state.moves > 0
+    ? Math.round((state.matched.size / 2 / state.moves) * 100)
+    : 0;
+  document.getElementById('finalScore').textContent = state.score;
+  document.getElementById('finalTime').textContent = state.timeMax + 's';
+  document.getElementById('finalMoves').textContent = state.moves;
+  document.getElementById('finalAcc').textContent = accuracy + '%';
+  showOverlay();
+}
+
+function updateBestScore() {
+  const best = state.bestScores[state.difficulty];
+  document.getElementById('bestScore').textContent = best !== null ? best : '---';
+}
+
+function showOverlay() { document.getElementById('overlay').classList.add('show'); }
+function hideOverlay() { document.getElementById('overlay').classList.remove('show'); }
+
+// Init
+newGame();
+</script>
+</body>
+</html>
